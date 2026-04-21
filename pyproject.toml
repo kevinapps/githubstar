@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "githubstar"
+dynamic = ["version"]
+description = "Export Github starred repos list to file"
+authors = [
+    {name = "kevinapps@github"},
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["github", "star", "stars", "starred", "export"]
+requires-python = ">=3.13"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "PyGithub >=1.59.1, <2.0.0",
+    "requests >=2.28.0",
+    "beautifulsoup4 >=4.12.0",
+    "PySocks >=1.7.1",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "githubstar.version.VERSION"}
+
+[project.urls]
+Homepage = "https://github.com/kevinapps/githubstar"
+
+[project.scripts]
+githubstar = "githubstar.githubstar:main"
