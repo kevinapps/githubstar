@@ -26,6 +26,9 @@ dependencies = [
     "requests >=2.34.2",
     "beautifulsoup4 >=4.15.0",
     "PySocks >=1.7.1",
+    # transitive dependency of PyJWT[crypto] (via PyGithub); pinned to fix
+    # GHSA (cryptography <50.0.0 Bleichenbacher oracle in PKCS#7 decryption)
+    "cryptography >=50.0.0",
 ]
 
 [tool.setuptools.dynamic]
