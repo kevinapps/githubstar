@@ -15,6 +15,7 @@
 
 
 class Utils(object):
+    @staticmethod
     def printProgress(p, base=0):
         total = p + base
         if total < 0:

@@ -25,6 +25,12 @@ from bs4 import BeautifulSoup
 from .utils import Utils
 
 
+def exceptionLineNo(exception):
+    """Return the line number where an exception occurred, 0 if unavailable."""
+    tb = exception.__traceback__
+    return tb.tb_lineno if tb else 0
+
+
 class TopicInfo:
     name = ""
     url = ""
@@ -76,13 +82,19 @@ class StarredFetcher(object):
                     curItemsPerPage = 0
                     for li in listsContainer.find_all("li"):
                         topicInfo = TopicInfo()
-                        topicInfo.url = "https://github.com" + li.find(
+                        topicLink = li.find(
                             "a",
                             class_="d-flex flex-md-items-center flex-auto no-underline",
-                        ).get("href")
-                        topicInfo.name = li.find(
+                        )
+                        if topicLink:
+                            href = topicLink.get("href")
+                            if href is not None:
+                                topicInfo.url = "https://github.com" + str(href)
+                        topicNameTag = li.find(
                             "p", class_="f3 lh-condensed mt-1 mt-md-0 mb-0"
-                        ).text
+                        )
+                        if topicNameTag:
+                            topicInfo.name = topicNameTag.text
                         self.starredTopics.append(topicInfo)
                         curItemsPerPage += 1
                     if itemsPerPage <= 0:
@@ -94,10 +106,11 @@ class StarredFetcher(object):
                 page += 1
         except Exception as exception:
             logging.error(
-                f"{__class__} line {exception.__traceback__.tb_lineno} : {url} generated an exception: {exception}"
+                f"{__class__} line {exceptionLineNo(exception)} : {url} generated an exception: {exception}"
             )
 
     def fetch(self):
+        url = ""
         try:
             url = f"https://github.com/{self.username}?tab=stars"
             response = requests.get(url)
@@ -115,11 +128,15 @@ class StarredFetcher(object):
             if listsContainer:
                 for link in listsContainer.find_all("a"):
                     listInfo = ListInfo()
-                    name = link.find(class_="f4 text-bold no-wrap mr-3")
+                    name = link.find(class_="f4 text-bold tmp-mr-3")
                     if name:
                         listInfo.name = name.text.strip()
-                    listInfo.url = "https://github.com" + link.get("href")
-                    description = link.find(class_="Truncate-text color-fg-muted mr-3")
+                    href = link.get("href")
+                    if href is not None:
+                        listInfo.url = "https://github.com" + str(href)
+                    description = link.find(
+                        class_="color-fg-muted tmp-mr-3 wb-break-word"
+                    )
                     if description:
                         listInfo.description = description.text.strip()
                     count = link.find(class_="color-fg-muted text-small no-wrap")
@@ -135,7 +152,7 @@ class StarredFetcher(object):
                 self.fetchListRepos()
         except Exception as exception:
             logging.error(
-                f"{__class__} line {exception.__traceback__.tb_lineno} : {url} generated an exception: {exception}"
+                f"{__class__} line {exceptionLineNo(exception)} : {url} generated an exception: {exception}"
             )
 
     __REPOS_PER_PAGE = 30
@@ -161,14 +178,14 @@ class StarredFetcher(object):
                 reposPerPage = len(
                     reposContainer.find_all(
                         "div",
-                        class_="col-12 d-block width-full py-4 border-bottom color-border-muted",
+                        class_="col-12 d-block width-full tmp-py-4 border-bottom color-border-muted",
                     )
                 )
             if reposPerPage > 0:
                 __REPOS_PER_PAGE = reposPerPage
         except Exception as exception:
             logging.error(
-                f"{__class__} line {exception.__traceback__.tb_lineno} : {exception}"
+                f"{__class__} line {exceptionLineNo(exception)} : {exception}"
             )
 
     class FetchListReposTaskData:
@@ -222,7 +239,7 @@ class StarredFetcher(object):
                 repoIndex = 0
                 for repo in reposContainer.find_all(
                     "div",
-                    class_="col-12 d-block width-full py-4 border-bottom color-border-muted",
+                    class_="col-12 d-block width-full tmp-py-4 border-bottom color-border-muted",
                 ):
                     if repoIndex >= self.__REPOS_PER_PAGE:
                         logging.error(
@@ -234,11 +251,14 @@ class StarredFetcher(object):
                     if nameBlock:
                         link = nameBlock.find("a")
                         if link:
-                            repoInfo.html_url = "https://github.com" + link.get("href")
-                            repoInfo.full_name = link.get("href")[1:]
-                            repoInfo.name = repoInfo.full_name.split("/", 1)[1]
+                            href = link.get("href")
+                            if href is not None:
+                                href = str(href)
+                                repoInfo.html_url = "https://github.com" + href
+                                repoInfo.full_name = href[1:]
+                                repoInfo.name = repoInfo.full_name.split("/", 1)[1]
                     descBlock = repo.find(
-                        "p", "d-inline-block col-9 color-fg-muted pr-4"
+                        "p", class_="d-inline-block col-9 color-fg-muted tmp-pr-4"
                     )
                     if descBlock:
                         repoInfo.description = descBlock.text
@@ -246,23 +266,22 @@ class StarredFetcher(object):
                             repoInfo.description = repoInfo.description.strip()
                     infoBlock = repo.find("div", class_="f6 color-fg-muted mt-2")
                     if infoBlock:
-                        lanBlock = infoBlock.find(
-                            attrs={"itemprop": "programmingLanguage"}
-                        )
+                        lanBlock = infoBlock.find(itemprop="programmingLanguage")
                         if lanBlock:
                             repoInfo.language = lanBlock.text
                         for linkBlock in infoBlock.find_all("a"):
-                            if linkBlock.get("href").endswith("stargazers"):
+                            href = linkBlock.get("href")
+                            if href is not None and str(href).endswith("stargazers"):
                                 repoInfo.stargazers_count = int(
                                     linkBlock.text.strip().replace(",", "")
                                 )
-                            elif linkBlock.get("href").endswith("forks"):
+                            elif href is not None and str(href).endswith("forks"):
                                 repoInfo.forks_count = int(
                                     linkBlock.text.strip().replace(",", "")
                                 )
                         updateTimeBlock = infoBlock.find("relative-time")
                         if updateTimeBlock:
-                            updateTimeStr = updateTimeBlock["datetime"]
+                            updateTimeStr = str(updateTimeBlock["datetime"])
                             if updateTimeStr.endswith("Z"):
                                 updateTimeStr = updateTimeStr[:-1]
                             repoInfo.pushed_at = datetime.fromisoformat(updateTimeStr)
@@ -272,16 +291,14 @@ class StarredFetcher(object):
                     repoIndex += 1
                 return True
         except Exception as exception:
-            if (
-                self.__fetchListReposTask_lastExceptionLineNo
-                != exception.__traceback__.tb_lineno
-                or self.__fetchListReposTask_lastExceptionType != type(exception)
-            ):
-                self.__fetchListReposTask_lastExceptionLineNo = (
-                    exception.__traceback__.tb_lineno
+            if self.__fetchListReposTask_lastExceptionLineNo != exceptionLineNo(
+                exception
+            ) or self.__fetchListReposTask_lastExceptionType != type(exception):
+                self.__fetchListReposTask_lastExceptionLineNo = exceptionLineNo(
+                    exception
                 )
                 self.__fetchListReposTask_lastExceptionType = type(exception)
                 logging.error(
-                    f"{__class__} line {exception.__traceback__.tb_lineno} : {data.page_url} generated an exception: {exception}"
+                    f"{__class__} line {exceptionLineNo(exception)} : {data.page_url} generated an exception: {exception}"
                 )
         return False
